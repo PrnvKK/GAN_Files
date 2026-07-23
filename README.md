@@ -21,13 +21,7 @@ While the accuracy gain is modest (+0.22%), the validation loss dropped by appro
 
 ### Baseline Classifier — ResNet50
 
-<details>
-<summary><b>View architecture diagram</b></summary>
-<br>
-
 ![ResNet50 Baseline Architecture](assets/baseline_model.png)
-
-</details>
 
 The classifier is built on an **ImageNet-pretrained ResNet50** backbone (`include_top=False`) with the last 20 convolutional layers unfrozen for domain-specific fine-tuning. A custom classification head is appended:
 
@@ -47,13 +41,7 @@ The classifier is built on an **ImageNet-pretrained ResNet50** backbone (`includ
 
 ### Conditional DCGAN
 
-<details>
-<summary><b>View architecture diagram</b></summary>
-<br>
-
 ![Conditional DCGAN Architecture](assets/gan_architecture.png)
-
-</details>
 
 The generator and discriminator are conditioned on class labels via embedding layers, enabling class-specific image generation.
 
