@@ -1,0 +1,47 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Output directories
+output/
+models/
+results/
+plots/
+samples/
+checkpoints/
+gan_training/
+augmented_data/
+augmentation_ratios/
+multi_run_results/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Model files
+*.h5
+*.hdf5
+
+# Training outputs
+*.json
+*.npy
+*.npz
+*.png
+
+# Logs
+*.log
+output.txt

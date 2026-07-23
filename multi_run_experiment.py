@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import time
 import json
 import cv2
+import gc
 
 from tensorflow.keras import layers, models
 from tensorflow.keras.applications import ResNet50
@@ -225,6 +226,21 @@ def plot_results(all_results):
 
 def main():
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    progress_path = os.path.join(RESULTS_DIR, '_checkpoint.json')
+
+    # Load checkpoint if resuming
+    all_results = []
+    completed_runs = set()
+    if os.path.exists(progress_path):
+        with open(progress_path) as f:
+            cp = json.load(f)
+        completed_runs = {tuple(r) for r in cp.get('completed', [])}
+        for saved in cp.get('results', []):
+            all_results.append({
+                'ratio': saved['ratio'],
+                'runs': saved['runs'],
+            })
+        print(f"Resuming: {len(completed_runs)} runs done, {len(all_results)} ratios loaded")
 
     print("=" * 70)
     print(f"MULTI-RUN EXPERIMENT: {N_RUNS} runs x {len(AUGMENTATION_RATIOS)} ratios")
@@ -244,19 +260,26 @@ def main():
     print(f"  Done: {sum(v.shape[0] for v in all_synth.values())} total images")
 
     # Train
-    print(f"\n[3/3] Running {N_RUNS * len(AUGMENTATION_RATIOS)} training runs...")
     total_runs = N_RUNS * len(AUGMENTATION_RATIOS)
-    run_count = 0
-    all_results = []
+    todo = total_runs - len(completed_runs)
+    print(f"\n[3/3] {todo} training runs remaining...")
 
-    for ratio in AUGMENTATION_RATIOS:
-        ratio_results = {'ratio': ratio, 'runs': []}
+    for ratio_idx, ratio in enumerate(AUGMENTATION_RATIOS):
+        if ratio_idx < len(all_results):
+            ratio_results = all_results[ratio_idx]
+        else:
+            ratio_results = {'ratio': ratio, 'runs': []}
+            all_results.append(ratio_results)
 
         for run_id in range(1, N_RUNS + 1):
-            run_count += 1
+            run_key = [ratio, run_id]
+            if tuple(run_key) in completed_runs:
+                continue
+
             seed = ratio * 100 + run_id
+            done_so_far = len(completed_runs)
             print(f"\n{'#' * 50}")
-            print(f"[{run_count}/{total_runs}] Ratio={ratio}, Run={run_id}/{N_RUNS}")
+            print(f"[{done_so_far + 1}/{total_runs}] Ratio={ratio}, Run={run_id}/{N_RUNS}")
             print(f"{'#' * 50}")
 
             if ratio == 0:
@@ -275,10 +298,29 @@ def main():
             elapsed = time.time() - t0
 
             ratio_results['runs'].append(result)
+            completed_runs.add(tuple(run_key))
+
+            # Save checkpoint
+            cp_data = {
+                'completed': [list(r) for r in completed_runs],
+                'results': [{
+                    'ratio': r['ratio'],
+                    'runs': r['runs'],
+                } for r in all_results]
+            }
+            with open(progress_path, 'w') as f:
+                json.dump(cp_data, f, indent=2)
+
             print(f"  acc={result['best_val_acc']:.4f} loss={result['best_val_loss']:.4f} "
                   f"ep={result['best_epoch']} | {elapsed:.1f}s")
 
-        all_results.append(ratio_results)
+            # Release memory after each run
+            del X_train, y_train, X_train_norm, result
+            tf.keras.backend.clear_session()
+            gc.collect()
+
+    if todo == 0:
+        print("\nAll runs already completed. Generating plots from checkpoint...")
 
     plot_results(all_results)
     print("\n" + "=" * 70)
